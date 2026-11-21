@@ -28,10 +28,18 @@
 
 ## 安装与使用
 
-1. 按下文构建适合宿主系统和 CPU 架构的 `.tar.gz` 安装包。
+1. 下载与 **运行宿主的服务器** 匹配的 `.tar.gz` 安装包。[Releases](https://github.com/monkeylxb/rs-account-scheduler/releases)
 2. 在 codex-proxy-rs 的「系统设置 → 插件管理」上传安装包，安装并启用插件，打开「账号定时启停」。
 3. 在「界面设置 → 新建计划」选择账号、执行动作和时区。配置执行时间，预览确认后保存。
 4. 在「执行日志」查看触发记录，按需要调整日志保留天数。
+
+| 宿主系统 | 安装包文件名后缀 |
+| --- | --- |
+| Linux x86_64 | `x86_64-unknown-linux-gnu.tar.gz` |
+| Linux ARM64 | `aarch64-unknown-linux-gnu.tar.gz` |
+| macOS ARM64（Apple 芯片） | `aarch64-apple-darwin.tar.gz` |
+
+Linux 安装包要求 glibc 2.28 或更新版本。每个安装包都带有一个同名的 `.sha256` 校验文件。
 
 例如，时区选择 `Asia/Shanghai`，让同一组账号在周一和周二晚上停用，到次日上午恢复。
 
@@ -76,6 +84,8 @@ cpr-plugin package --manifest plugin.json \
 ```
 
 `dist/` 会生成插件归档及 `.sha256` 校验文件。版本号和宿主兼容范围见 [plugin.json](plugin.json)。
+
+Linux ARM64 构建用 `aarch64-unknown-linux-gnu.2.28`，打包时目标为 `aarch64-unknown-linux-gnu`。在 Apple 芯片 Mac 上构建 macOS ARM64 时，用 `cargo build --locked --manifest-path backend/Cargo.toml --release --target aarch64-apple-darwin`，打包目标同为 `aarch64-apple-darwin`。
 
 ## 许可证
 
