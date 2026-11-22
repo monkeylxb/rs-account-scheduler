@@ -22,6 +22,7 @@ const runtimeAccount = (id, account) => ({
 })
 let child, buffered, pending, ready, sequence = 99, errors = '', incarnation, handleSequence = 0
 let failFinalSave = false, ambiguousUpdate = false
+let afterScheduleRead
 
 function send(meta, data, payload = Buffer.alloc(0)) {
   if (!(payload instanceof Buffer)) payload = Buffer.from(JSON.stringify(payload))
@@ -50,7 +51,10 @@ async function callback(meta, params, payload) {
   }
   if (meta.method === 'host.state.get') {
     assert.equal(data.namespace, 'account-scheduler')
-    return result(meta.id, { record: records.get(data.key) ?? null })
+    result(meta.id, { record: records.get(data.key) ?? null })
+    afterScheduleRead?.()
+    afterScheduleRead = undefined
+    return
   }
   if (meta.method === 'host.state.put') {
     assert.equal(data.namespace, 'account-scheduler')
@@ -307,6 +311,58 @@ try {
   assert.equal(pendingRun.details.length, 3)
   assert.equal(pendingRun.details.find(detail => detail.accountId === 'acct_3').outcome, null)
   check('Plan runs group by identity and time, preserve all details after filtering, and distinguish pending and uncertain results')
+
+  records.clear()
+  const jittered = {
+    name: '错开启用', accountIds: ['acct_1', 'acct_2'], enableCron: '0 8 * * *',
+    disableCron: null, timezone: 'UTC', enabled: false, enableJitterSeconds: 45,
+  }
+  assert.equal((await edit({ ...jittered, enableJitterSeconds: -1 }, 0)).status, 400)
+  assert.equal((await edit({ ...jittered, enableJitterSeconds: 0.5 }, 0)).status, 400)
+  assert.equal((await edit({ ...jittered, enableJitterSeconds: 2 ** 53 }, 0)).status, 400)
+  const savedJitter = await edit(jittered, 0)
+  assert.equal(savedJitter.status, 200)
+  const jitterRuleId = savedJitter.value.rules[0].id
+  assert.equal((await request('api/dashboard')).value.rules[0].rule.enableJitterSeconds, 45)
+  assert.equal((await edit({ ...jittered, enableJitterSeconds: 0 }, 1, jitterRuleId)).status, 200)
+  assert.equal((await request('api/dashboard')).value.rules[0].rule.enableJitterSeconds, undefined)
+  assert.equal(state().rules[0].values.enableJitterSeconds, undefined)
+  check('The management API validates, persists, and clears jitter')
+
+  const distant = Math.floor(Date.now() / 1000) + 90
+  const waiting = { ruleId: jitterRuleId, ruleName: jittered.name, scheduledAt: distant - 120, action: 'enable', started: false }
+  state().jobs.acct_1 = { ...waiting, executeAfter: distant }
+  await stop()
+  await start()
+  const readStart = reads.length, writeStart = writes.length
+  await scan()
+  assert.equal(state().jobs.acct_1.executeAfter, distant)
+  assert.deepEqual(reads.slice(readStart), ['host.state.get'])
+  assert.equal(writes.length, writeStart)
+  check('A persisted future job survives a restart without account access before it is due')
+
+  for (const account of accounts.values()) account.enabled = false
+  const scanAt = Math.floor(Date.now() / 1000)
+  const firstDue = scanAt + 3, secondDue = scanAt + 6
+  state().jobs.acct_1 = { ...waiting, executeAfter: secondDue }
+  state().jobs.acct_2 = { ...waiting, executeAfter: firstDue }
+  const reading = Promise.withResolvers()
+  afterScheduleRead = reading.resolve
+  const completion = scan()
+  await reading.promise
+  const duringWait = await request('api/retention', { days: 7, expectedVersion: 2 })
+  assert.equal(duringWait.status, 200)
+  assert.equal(writes.length, writeStart)
+  await completion
+  assert.equal(state().retentionDays, 7)
+  assert.deepEqual(writes.slice(writeStart), [['acct_2', true], ['acct_1', true]])
+  const [secondEnable, firstEnable] = state().logs
+  assert.ok(firstEnable.executedAt >= firstDue)
+  assert.ok(secondEnable.executedAt >= secondDue)
+  assert.ok(firstEnable.executedAt < secondEnable.executedAt)
+  assert.equal(firstEnable.scheduledAt, secondEnable.scheduledAt)
+  assert.deepEqual(state().jobs, {})
+  check('One maintenance call honors separate second-level deadlines and releases the management lock while waiting')
   await stop()
 } catch (cause) {
   child?.kill()

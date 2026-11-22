@@ -11,11 +11,11 @@ import { ZTable, type TableColumn } from '@codex-proxy/ui/table'
 import { ZTag } from '@codex-proxy/ui/tag'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { api } from './api'
-import { actionLabel, dateTime, localZone, message, outcomeLabels, outcomeTag, runStatuses } from './format'
+import { actionLabel, dateTime, jitterRange, localZone, message, outcomeLabels, outcomeTag, runStatuses } from './format'
 import RuleEditor from './RuleEditor.vue'
 import type { Account, Dashboard, LogPage, Rule, RuleInput, Run, RunAccount } from './types'
 
-const preview = import.meta.env.DEV
+const { preview } = defineProps<{ preview: boolean }>()
 const zone = localZone()
 const tabs = [{ id: 'settings', label: '界面设置' }, { id: 'logs', label: '执行日志' }] as const
 type Tab = typeof tabs[number]['id']
@@ -41,6 +41,12 @@ const accountName = (id: string) => names.value.get(id) || id
 const active = computed(() => dashboard.value.rules.filter(row => row.rule.enabled).length)
 const next = computed(() => dashboard.value.rules.filter(row => row.nextAt !== null)
   .sort((left, right) => left.nextAt! - right.nextAt!)[0])
+function nextActionLabel(row: Rule) {
+  if (!row.nextAction) return '启停冲突'
+  const seconds = row.nextAction === 'enable' ? row.rule.enableJitterSeconds : undefined
+  const label = actionLabel(row.nextAction)
+  return seconds ? `${label} · ${jitterRange(seconds)}` : label
+}
 const numPages = computed(() => Math.max(1, Math.ceil(logPage.value.total / logPage.value.pageSize)))
 const accountOptions = computed(() => [
   { value: '', label: '全部账号' },
@@ -203,7 +209,7 @@ onMounted(() => void refreshAll())
         </ZCard>
         <ZCard padding="none" class="summary-card">
           <div><span class="summary-label" title="已启用计划中最早的下一次触发时间">下次计划执行</span><strong class="summary-time">{{ dateTime(next?.nextAt ?? null, next?.rule.timezone ?? zone) }}</strong>
-            <small v-if="next">{{ next.rule.name }} · {{ next.nextAction ? actionLabel(next.nextAction) : '启停冲突' }} · {{ next.rule.timezone }}</small></div>
+            <small v-if="next">{{ next.rule.name }} · {{ nextActionLabel(next) }} · {{ next.rule.timezone }}</small></div>
           <span class="summary-icon green"><Clock3 :size="20" /></span>
         </ZCard>
       </div>
@@ -227,13 +233,14 @@ onMounted(() => void refreshAll())
           <template #cron="{ row }">
             <div class="cron-cell">
               <div v-if="row.rule.enableCron" class="cron-action"><ZTag size="small" type="success">启用</ZTag><code>{{ row.rule.enableCron }}</code></div>
+              <small v-if="row.rule.enableCron && row.rule.enableJitterSeconds">启用{{ jitterRange(row.rule.enableJitterSeconds) }}</small>
               <div v-if="row.rule.disableCron" class="cron-action"><ZTag size="small" type="warning">停用</ZTag><code>{{ row.rule.disableCron }}</code></div>
               <small>{{ row.rule.timezone }}</small>
             </div>
           </template>
           <template #next="{ row }">
             <div class="cron-cell"><span class="tabular">{{ dateTime(row.nextAt, row.rule.timezone) }}</span>
-              <small v-if="row.nextAt !== null">{{ row.nextAction ? actionLabel(row.nextAction) : '启停冲突' }}</small>
+              <small v-if="row.nextAt !== null">{{ nextActionLabel(row) }}</small>
             </div>
           </template>
           <template #enabled="{ row }">
@@ -272,7 +279,7 @@ onMounted(() => void refreshAll())
           <template #ruleName="{ row }"><span class="plan-name" :title="row.ruleName">{{ row.ruleName }}</span></template>
           <template #action="{ row }">{{ actionLabel(row.action) }}</template>
           <template #scheduled="{ row }"><span class="tabular">{{ dateTime(row.scheduledAt, zone) }}</span></template>
-          <template #executed="{ row }"><span class="tabular">{{ dateTime(row.executedAt, zone) }}</span></template>
+          <template #executed="{ row }"><span class="tabular">{{ dateTime(row.executedAt, zone, true) }}</span></template>
           <template #outcome="{ row }">
             <div class="cron-cell">
               <ZTag size="small" :type="runStatuses[row.status].type">{{ runStatuses[row.status].label }}</ZTag>
@@ -298,7 +305,7 @@ onMounted(() => void refreshAll())
       <ZTable class="log-table" scrollbar-always-visible size="small" :columns="detailColumns" :data="selectedRun.details"
         :row-key="(row: RunAccount, index: number) => `${row.accountId}/${index}`">
         <template #account="{ row }"><span :title="row.accountId">{{ accountName(row.accountId) }}</span></template>
-        <template #executed="{ row }"><span class="tabular">{{ dateTime(row.executedAt, zone) }}</span></template>
+        <template #executed="{ row }"><span class="tabular">{{ dateTime(row.executedAt, zone, true) }}</span></template>
         <template #outcome="{ row }"><ZTag size="small" :type="outcomeTag(row.outcome)">{{ row.outcome ? outcomeLabels[row.outcome] : '待执行' }}</ZTag></template>
       </ZTable>
       <template #footer><ZButton @click="showRun = false">关闭</ZButton></template>

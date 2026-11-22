@@ -48,10 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .on(methods::RECONCILE, move |call| {
             let lock = Arc::clone(&maintenance_lock);
             async move {
-                let Ok(_guard) = lock.try_lock() else {
-                    return Ok(TypedReply::new(Empty {}));
-                };
-                engine::reconcile(&call.host, call.context.timeout_ms).await?;
+                engine::reconcile(&call.host, call.context.timeout_ms, &lock).await?;
                 Ok(TypedReply::new(Empty {}))
             }
         })?

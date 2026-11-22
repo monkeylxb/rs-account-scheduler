@@ -24,6 +24,10 @@ const enableCron = ref(form.enableCron ?? '0 8 * * 1,2')
 const disableCron = ref(form.disableCron ?? '0 22 * * 1,2')
 const hasEnable = computed(() => actions.value !== 'disable')
 const hasDisable = computed(() => actions.value !== 'enable')
+const jitterInput = ref(String(props.initial.enableJitterSeconds ?? 0))
+const jitterSeconds = computed(() => Number(jitterInput.value))
+const validJitter = computed(() => String(jitterInput.value).trim() !== ''
+  && Number.isSafeInteger(jitterSeconds.value) && jitterSeconds.value >= 0)
 const query = ref('')
 const pickerList = ref<HTMLElement>()
 const accountPage = ref(1), accountPageSize = ref(5)
@@ -49,7 +53,8 @@ watch(filteredAccounts, accounts => {
   accountPage.value = Math.min(accountPage.value, Math.max(1, Math.ceil(accounts.length / accountPageSize.value)))
 })
 const canSubmit = computed(() => !!form.name.trim() && !!form.timezone.trim() && form.accountIds.length > 0
-  && (!hasEnable.value || !!enableCron.value) && (!hasDisable.value || !!disableCron.value))
+  && (!hasEnable.value || (!!enableCron.value && validJitter.value))
+  && (!hasDisable.value || !!disableCron.value))
 function accountDetails(account: Account) {
   const provider = account.provider === 'openai' ? 'OpenAI' : account.provider === 'xai' ? 'xAI' : account.provider
   return [provider, ...account.groupNames].join(' · ')
@@ -61,11 +66,13 @@ function selectAccount(id: string, checked: boolean) {
 function submit() {
   if (!canSubmit.value || props.busy) return
   emit('save', {
-    ...form,
+    name: form.name,
     accountIds: [...form.accountIds],
     enableCron: hasEnable.value ? enableCron.value : null,
     disableCron: hasDisable.value ? disableCron.value : null,
     timezone: form.timezone.trim(),
+    enabled: form.enabled,
+    ...(hasEnable.value && jitterSeconds.value > 0 ? { enableJitterSeconds: jitterSeconds.value } : {}),
   })
 }
 </script>
@@ -131,7 +138,19 @@ function submit() {
               <ZInput id="schedule-time-zone" v-model="form.timezone" size="small" placeholder="Asia/Shanghai" :disabled="busy" />
             </div>
           </div>
-          <ScheduleTimeEditor v-show="hasEnable" v-model="enableCron" action="enable" :timezone="form.timezone" :busy="busy" />
+          <ScheduleTimeEditor v-show="hasEnable" v-model="enableCron" action="enable" :timezone="form.timezone" :busy="busy"
+            :jitter-seconds="validJitter ? jitterSeconds : undefined">
+            <div class="enable-jitter">
+              <label for="schedule-enable-jitter">启用抖动</label>
+              <ZInput id="schedule-enable-jitter" v-model="jitterInput" class="jitter-input" type="number" :min="0"
+                :step="1" size="small" aria-describedby="schedule-jitter-help" :aria-invalid="!validJitter" :disabled="busy">
+                <template #suffix>秒</template>
+              </ZInput>
+              <p id="schedule-jitter-help" :class="{ error: !validJitter }">
+                {{ validJitter ? '每个账号在设定范围内错开启用，0 秒关闭抖动' : '请输入非负整数秒' }}
+              </p>
+            </div>
+          </ScheduleTimeEditor>
           <ScheduleTimeEditor v-show="hasDisable" v-model="disableCron" action="disable" :timezone="form.timezone" :busy="busy" />
         </section>
       </div>
@@ -181,6 +200,11 @@ function submit() {
 .editor-timezone { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .editor-timezone label { font-size: 11px; font-weight: 650; white-space: nowrap; }
 .editor-timezone > :last-child { width: clamp(112px, 21vw, 170px); }
+.enable-jitter { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.enable-jitter label { font-size: 11px; font-weight: 650; }
+.jitter-input { width: 90px; }
+.enable-jitter p { flex-basis: 100%; margin: 0; color: var(--cp-color-text-secondary); font-size: 11px; }
+.enable-jitter p.error { color: var(--cp-color-error-text); }
 .picker-count, .picker-state {
   padding: 4px 7px;
   border-radius: 6px;

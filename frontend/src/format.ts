@@ -18,14 +18,15 @@ export function outcomeTag(outcome: Outcome | null) {
   return outcome === 'unchanged' || outcome === null ? 'default' : 'success'
 }
 export const actionLabel = (action: Action | null) => action === 'enable' ? '启用' : action === 'disable' ? '停用' : '跳过'
+export const jitterRange = (seconds: number) => `抖动 0–${seconds} 秒`
 export const message = (error: unknown) => error instanceof Error ? error.message : '操作失败'
 export const localZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-export function dateTime(at: number | null, timezone = localZone()): string {
+export function dateTime(at: number | null, timezone = localZone(), withSeconds = false): string {
   if (at === null) return '—'
   try {
     return new Intl.DateTimeFormat('zh-CN', {
       timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      hour: '2-digit', minute: '2-digit', second: withSeconds ? '2-digit' : undefined, hourCycle: 'h23',
     }).format(at * 1000)
   } catch { return '—' }
 }

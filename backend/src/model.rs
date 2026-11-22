@@ -12,6 +12,7 @@ pub const MAX_TARGETS: usize = 160;
 pub const MAX_LOGS: usize = 1000;
 pub const MAX_STATE_BYTES: usize = 240_000;
 pub const LOG_PAGE_SIZE: usize = 30;
+const MAX_JITTER_SECONDS: u64 = 9_007_199_254_740_991;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -32,6 +33,8 @@ pub struct RuleInput {
     pub name: String,
     pub account_ids: Vec<String>,
     pub enable_cron: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_jitter_seconds: Option<u64>,
     pub disable_cron: Option<String>,
     pub timezone: String,
     pub enabled: bool,
@@ -43,6 +46,7 @@ struct RuleInputWire {
     name: String,
     account_ids: Vec<String>,
     enable_cron: Option<String>,
+    enable_jitter_seconds: Option<u64>,
     disable_cron: Option<String>,
     action: Option<Action>,
     cron: Option<String>,
@@ -65,10 +69,20 @@ impl TryFrom<RuleInputWire> for RuleInput {
             (Some(Action::Disable), Some(cron), None, None) => (None, Some(cron)),
             _ => return Err("计划的启停时间格式无效"),
         };
+        if input
+            .enable_jitter_seconds
+            .is_some_and(|seconds| seconds > MAX_JITTER_SECONDS)
+        {
+            return Err("启用抖动须为可精确表示的非负整数秒");
+        }
+        let enable_jitter_seconds = input
+            .enable_jitter_seconds
+            .filter(|&seconds| seconds > 0 && enable_cron.is_some());
         Ok(Self {
             name: input.name,
             account_ids: input.account_ids,
             enable_cron,
+            enable_jitter_seconds,
             disable_cron,
             timezone: input.timezone,
             enabled: input.enabled,
@@ -140,6 +154,8 @@ pub struct Job {
     pub rule_id: String,
     pub rule_name: String,
     pub scheduled_at: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execute_after: Option<i64>,
     pub action: Option<Action>,
     pub started: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -147,6 +163,10 @@ pub struct Job {
 }
 
 impl Job {
+    pub fn ready_at(&self) -> i64 {
+        self.execute_after.unwrap_or(self.scheduled_at)
+    }
+
     pub fn log_rule_id(&self) -> Option<&str> {
         (!self.cross_rule_conflict).then_some(self.rule_id.as_str())
     }

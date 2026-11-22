@@ -4,7 +4,7 @@ import { dateTime } from './format'
 import type { Account, BridgeResponse, Dashboard, Outcome, Rule, RuleInput, Run } from './types'
 
 export function installPreview() {
-  if (window.codexProxyPlugin) return
+  if (window.codexProxyPlugin) return false
   const theme = new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light'
   applyResolvedTheme(document.documentElement, resolveTheme(theme, DEFAULT_THEME_COLOR, DEFAULT_CUSTOM_THEME_COLOR))
   const timezone = 'Asia/Shanghai'
@@ -27,7 +27,7 @@ export function installPreview() {
     }),
   ]
   const rules: Rule[] = [
-    { id: 'rule-01', rule: { name: '工作账号定时启停', accountIds: ['sample-01', 'sample-02'], enableCron: '0 8 * * 2,3', disableCron: '0 22 * * 1,2', timezone, enabled: true }, nextAt: null, nextAction: null },
+    { id: 'rule-01', rule: { name: '工作账号定时启停', accountIds: ['sample-01', 'sample-02'], enableCron: '0 8 * * 2,3', enableJitterSeconds: 30, disableCron: '0 22 * * 1,2', timezone, enabled: true }, nextAt: null, nextAction: null },
     { id: 'rule-02', rule: { name: '备用账号周末停用', accountIds: ['sample-04'], enableCron: null, disableCron: '0 23 * * 0,6', timezone, enabled: false }, nextAt: null, nextAction: null },
   ]
   const data: Dashboard = { rules, version: 0, retentionDays: 30, queued: 0 }
@@ -145,9 +145,12 @@ export function installPreview() {
           if (!rule.enableCron && !rule.disableCron) return error('请至少设置启用或停用时间')
           const enableCron = rule.enableCron?.trim().replace(/\s+/g, ' ') || null
           const disableCron = rule.disableCron?.trim().replace(/\s+/g, ' ') || null
+          const enableJitterSeconds = enableCron ? rule.enableJitterSeconds ?? 0 : 0
+          if (!Number.isSafeInteger(enableJitterSeconds) || enableJitterSeconds < 0)
+            return error('启用抖动须为非负整数秒')
           if (enableCron) upcoming(enableCron, rule.timezone, 1)
           if (disableCron) upcoming(disableCron, rule.timezone, 1)
-          const normalized = { ...rule, enableCron, disableCron }
+          const normalized = { ...rule, enableCron, disableCron, enableJitterSeconds }
           const conflict = conflictMessage(normalized, request.id)
           if (conflict) return error(conflict, 409)
           if (request.id) {
@@ -170,4 +173,5 @@ export function installPreview() {
       }
     },
   }
+  return true
 }

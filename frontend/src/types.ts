@@ -6,6 +6,7 @@ export interface RuleInput {
   name: string
   accountIds: string[]
   enableCron: string | null
+  enableJitterSeconds?: number
   disableCron: string | null
   timezone: string
   enabled: boolean

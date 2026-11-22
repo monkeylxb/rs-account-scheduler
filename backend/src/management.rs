@@ -236,6 +236,7 @@ async fn inner(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault>
                 let before = &rule.values;
                 let changed = before.account_ids != request.rule.account_ids
                     || before.enable_cron != request.rule.enable_cron
+                    || before.enable_jitter_seconds != request.rule.enable_jitter_seconds
                     || before.disable_cron != request.rule.disable_cron
                     || before.timezone != request.rule.timezone
                     || before.enabled != request.rule.enabled;

@@ -6,10 +6,10 @@ import { ZPopover } from '@codex-proxy/ui/popover'
 import { ZSegmented } from '@codex-proxy/ui/segmented'
 import { computed, ref, useId, watch } from 'vue'
 import { api } from './api'
-import { dateTime, message } from './format'
+import { dateTime, jitterRange, message } from './format'
 import type { Action } from './types'
 
-const props = defineProps<{ action: Action; timezone: string; busy: boolean }>()
+const props = defineProps<{ action: Action; timezone: string; busy: boolean; jitterSeconds?: number }>()
 const model = defineModel<string>({ required: true })
 const id = useId()
 const title = computed(() => props.action === 'enable' ? '启用时间' : '停用时间')
@@ -95,6 +95,7 @@ async function calculate() {
       <label :for="`${id}-cron`">五段 Cron</label>
       <ZInput :id="`${id}-cron`" v-model="expression" placeholder="0 22 * * 1,2" :disabled="busy" />
     </div>
+    <slot />
     <div class="preview-line">
       <code v-if="mode === 'weekly' && weeklyCron" title="生成的 Cron 表达式">{{ weeklyCron }}</code>
       <ZPopover v-model="previewOpen" placement="bottom-end" :disabled="!cron || !timezone.trim() || busy"
@@ -109,6 +110,7 @@ async function calculate() {
           <div class="time-preview-heading">
             <h5 :id="`${id}-upcoming`">{{ title }}预览</h5>
             <small>{{ timezone.trim() }}</small>
+            <small v-if="action === 'enable' && jitterSeconds">每次启用{{ jitterRange(jitterSeconds) }}</small>
           </div>
           <div aria-live="polite">
             <p v-if="calculating" class="preview-message">正在计算时间…</p>
