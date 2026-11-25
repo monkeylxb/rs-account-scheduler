@@ -313,6 +313,8 @@ try {
   check('Plan runs group by identity and time, preserve all details after filtering, and distinguish pending and uncertain results')
 
   records.clear()
+  accounts.get('acct_2').provider = 'antigravity'
+  assert.equal((await request('api/accounts', undefined, 'cursor=2')).value.accounts[0].provider, 'antigravity')
   const jittered = {
     name: '错开启用', accountIds: ['acct_1', 'acct_2'], enableCron: '0 8 * * *',
     disableCron: null, timezone: 'UTC', enabled: false, enableJitterSeconds: 45,

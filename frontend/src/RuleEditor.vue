@@ -56,7 +56,8 @@ const canSubmit = computed(() => !!form.name.trim() && !!form.timezone.trim() &&
   && (!hasEnable.value || (!!enableCron.value && validJitter.value))
   && (!hasDisable.value || !!disableCron.value))
 function accountDetails(account: Account) {
-  const provider = account.provider === 'openai' ? 'OpenAI' : account.provider === 'xai' ? 'xAI' : account.provider
+  const providerNames: Record<string, string> = { openai: 'OpenAI', xai: 'xAI', antigravity: 'Antigravity' }
+  const provider = Object.hasOwn(providerNames, account.provider) ? providerNames[account.provider] : account.provider
   return [provider, ...account.groupNames].join(' · ')
 }
 function selectAccount(id: string, checked: boolean) {
