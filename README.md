@@ -1,10 +1,10 @@
 # 账号定时启停
 
-`rs-account-scheduler` 是适用于 **codex-proxy-rs 3.54.x 和 3.55.x** 的管理插件。它可以按班次、工作日或自定义 Cron 定时启用、停用一组网关账号，并在管理界面查看每次执行结果。[codex-proxy-rs](https://github.com/zyycn/codex-proxy-rs)
+`rs-account-scheduler` 是适用于 **codex-proxy-rs 3.54.x、3.55.x 和 3.56.x** 的管理插件。它可以按班次、工作日或自定义 Cron 定时启用、停用一组网关账号，并在管理界面查看每次执行结果。[codex-proxy-rs](https://github.com/zyycn/codex-proxy-rs)
 
 ## 功能
 
-- **批量选择账号**。按账号名称、ID 或宿主账号组名搜索。列表可分页，搜索和翻页时保留勾选。RS 3.55 上的 Antigravity 账号也可加入启停计划。
+- **批量选择账号**。按账号名称、ID 或宿主账号组名搜索。列表可分页，搜索和翻页时保留勾选。RS 3.55 起，Antigravity 账号也可加入启停计划。
 - **同一计划配置启用和停用**。可选择「启用和停用」「仅启用」或「仅停用」。启用和停用各有一套执行时间，共用一组账号和一个 IANA 时区。
 - **按账号错开启用**。启用抖动可自定义秒数，批量启用时分散宿主配置变更，以及 RS 可能触发的 OpenAI 模型目录补查，减轻切换瞬间的负载峰值。填 0 秒关闭抖动。
 - **按星期或五段 Cron 调度**。执行时间支持可视化选择星期，也可直接填写 Cron。在按钮旁的浮层可以查看接下来五次启用或停用时间。
@@ -74,7 +74,7 @@ pnpm --dir frontend dev --port 5177
 
 ## 测试与打包
 
-后端使用 Rust 1.99.1+。打包使用宿主 SDK 提供的 `cpr-plugin` CLI。下面的 Linux x86_64 构建还需要 Zig 和 `cargo-zigbuild`，目标运行环境为 glibc 2.28 或更新版本。[插件 SDK 指南](https://github.com/zyycn/codex-proxy-rs/blob/main/backend/crates/gateway-plugin/sdk/README.md)
+后端使用 Rust 1.99.1+。SDK 和 `cpr-plugin` 打包工具固定到 RS v3.56.0 提交 `a46d0f4c08bcf0f89aa004eb1d089e9e0039898c`。下面的 Linux x86_64 构建还需要 Zig 和 `cargo-zigbuild`，目标运行环境为 glibc 2.28 或更新版本。[插件 SDK 指南](https://github.com/zyycn/codex-proxy-rs/blob/main/backend/crates/gateway-plugin/sdk/README.md)
 
 ```sh
 cargo test --locked --manifest-path backend/Cargo.toml
