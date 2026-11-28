@@ -1,6 +1,6 @@
 # 账号定时启停
 
-`rs-account-scheduler` 是适用于 **codex-proxy-rs 3.54.x 至 3.57.x** 的管理插件。它可以按班次、工作日或自定义 Cron 定时启用、停用一组网关账号，并在管理界面查看每次执行结果。[codex-proxy-rs](https://github.com/zyycn/codex-proxy-rs)
+`rs-account-scheduler` 是适用于 **codex-proxy-rs 3.54.x 至 3.58.x** 的管理插件。它可以按班次、工作日或自定义 Cron 定时启用、停用一组网关账号，并在管理界面查看每次执行结果。[codex-proxy-rs](https://github.com/zyycn/codex-proxy-rs)
 
 ## 功能
 
@@ -74,7 +74,7 @@ pnpm --dir frontend dev --port 5177
 
 ## 测试与打包
 
-后端使用 Rust 1.99.1+。SDK 和 `cpr-plugin` 打包工具固定到 RS v3.57.0 提交 `6950c02ee460143dd63103a35a5dd679712488dc`。下面的 Linux x86_64 构建还需要 Zig 和 `cargo-zigbuild`，目标运行环境为 glibc 2.28 或更新版本。[插件 SDK 指南](https://github.com/zyycn/codex-proxy-rs/blob/main/backend/crates/gateway-plugin/sdk/README.md)
+后端使用 Rust 1.99.1+。SDK 和 `cpr-plugin` 打包工具固定到 RS v3.58.0 提交 `91d3b8cad88683aeaee161d6df455b03be48d0cd`。下面的 Linux x86_64 构建还需要 Zig 和 `cargo-zigbuild`，目标运行环境为 glibc 2.28 或更新版本。[插件 SDK 指南](https://github.com/zyycn/codex-proxy-rs/blob/main/backend/crates/gateway-plugin/sdk/README.md)
 
 ```sh
 cargo test --locked --manifest-path backend/Cargo.toml
